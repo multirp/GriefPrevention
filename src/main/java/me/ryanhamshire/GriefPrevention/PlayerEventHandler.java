@@ -1907,7 +1907,9 @@ class PlayerEventHandler implements Listener
                 if (material.isLegacy()) continue;
                 if (material.name().endsWith("_SPAWN_EGG"))
                     spawn_eggs.add(material);
-                else if (material.name().endsWith("_DYE"))
+                else if (material.name().endsWith("_DYE")
+                		|| material.equals(Material.GLOW_INK_SAC)
+                		|| material.equals(Material.INK_SAC))
                     dyes.add(material);
             }
 
