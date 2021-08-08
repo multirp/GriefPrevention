@@ -1907,19 +1907,19 @@ class PlayerEventHandler implements Listener
                 if (material.isLegacy()) continue;
                 if (material.name().endsWith("_SPAWN_EGG"))
                     spawn_eggs.add(material);
-                else if (material.name().endsWith("_DYE")
-                		|| material.equals(Material.GLOW_INK_SAC)
-                		|| material.equals(Material.INK_SAC))
+                else if (material.name().endsWith("_DYE"))
                     dyes.add(material);
             }
 
-
             //if it's bonemeal, armor stand, spawn egg, etc - check for build permission //RoboMWM: also check flint and steel to stop TNT ignition
+            //add glowing ink sac and ink sac, due to their usage on signs
             if (clickedBlock != null && (materialInHand == Material.BONE_MEAL
                     || materialInHand == Material.ARMOR_STAND
                     || (spawn_eggs.contains(materialInHand) && GriefPrevention.instance.config_claims_preventGlobalMonsterEggs)
                     || materialInHand == Material.END_CRYSTAL
                     || materialInHand == Material.FLINT_AND_STEEL
+                    || materialInHand == Material.INK_SAC
+                    || materialInHand == Material.GLOW_INK_SAC
                     || dyes.contains(materialInHand)))
             {
                 String noBuildReason = instance
