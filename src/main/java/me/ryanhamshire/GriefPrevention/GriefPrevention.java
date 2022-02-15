@@ -82,6 +82,9 @@ public class GriefPrevention extends JavaPlugin
     //this handles data storage, like player and region data
     public DataStore dataStore;
 
+    // Event handlers with common functionality
+    EntityEventHandler entityEventHandler;
+
     //this tracks item stacks expected to drop which will need protection
     ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
 
@@ -359,7 +362,7 @@ public class GriefPrevention extends JavaPlugin
         pluginManager.registerEvents(blockEventHandler, this);
 
         //entity events
-        EntityEventHandler entityEventHandler = new EntityEventHandler(this.dataStore, this);
+        entityEventHandler = new EntityEventHandler(this.dataStore, this);
         pluginManager.registerEvents(entityEventHandler, this);
 
         //siege events
@@ -1526,12 +1529,6 @@ public class GriefPrevention extends JavaPlugin
             //determine which claim the player is standing in
             Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
 
-            //bracket any permissions
-            if (args[0].contains(".") && !args[0].startsWith("[") && !args[0].endsWith("]"))
-            {
-                args[0] = "[" + args[0] + "]";
-            }
-
             //determine whether a single player or clearing permissions entirely
             boolean clearPermissions = false;
             OfflinePlayer otherPlayer = null;
@@ -1555,8 +1552,16 @@ public class GriefPrevention extends JavaPlugin
                     otherPlayer = this.resolvePlayerByName(args[0]);
                     if (!clearPermissions && otherPlayer == null && !args[0].equals("public"))
                     {
-                        GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
-                        return true;
+                        //bracket any permissions - at this point it must be a permission without brackets
+                        if (args[0].contains("."))
+                        {
+                            args[0] = "[" + args[0] + "]";
+                        }
+                        else
+                        {
+                            GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
+                            return true;
+                        }
                     }
 
                     //correct to proper casing
@@ -1586,9 +1591,8 @@ public class GriefPrevention extends JavaPlugin
                 }
 
                 //dropping permissions
-                for (int i = 0; i < playerData.getClaims().size(); i++)
-                {
-                    claim = playerData.getClaims().get(i);
+                for (Claim targetClaim : event.getClaims()) {
+                    claim = targetClaim;
 
                     //if untrusting "all" drop all permissions
                     if (clearPermissions)
@@ -1651,7 +1655,7 @@ public class GriefPrevention extends JavaPlugin
                         return true;
                     }
 
-                    claim.clearPermissions();
+                    event.getClaims().forEach(Claim::clearPermissions);
                     GriefPrevention.sendMessage(player, TextMode.Success, Messages.ClearPermissionsOneClaim);
                 }
 
@@ -1680,8 +1684,7 @@ public class GriefPrevention extends JavaPlugin
                             return true;
                         }
 
-                        claim.dropPermission(idToDrop);
-                        claim.managers.remove(idToDrop);
+                        event.getClaims().forEach(targetClaim -> targetClaim.dropPermission(event.getIdentifier()));
 
                         //beautify for output
                         if (args[0].equals("public"))
@@ -2949,20 +2952,22 @@ public class GriefPrevention extends JavaPlugin
                 return;
             }
         }
-        else if (recipientName.contains("."))
-        {
-            permission = recipientName;
-        }
         else
         {
             otherPlayer = this.resolvePlayerByName(recipientName);
-            if (otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all"))
+            boolean isPermissionFormat = recipientName.contains(".");
+            if (otherPlayer == null && !recipientName.equals("public") && !recipientName.equals("all") && !isPermissionFormat)
             {
                 GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerNotFound2);
                 return;
             }
 
-            if (otherPlayer != null)
+            if (otherPlayer == null && isPermissionFormat)
+            {
+                //player does not exist and argument has a period so this is a permission instead
+                permission = recipientName;
+            }
+            else if (otherPlayer != null)
             {
                 recipientName = otherPlayer.getName();
                 recipientID = otherPlayer.getUniqueId();
@@ -3029,6 +3034,8 @@ public class GriefPrevention extends JavaPlugin
         if (permission != null)
         {
             identifierToAdd = "[" + permission + "]";
+            //replace recipientName as well so the success message clearly signals a permission
+            recipientName = identifierToAdd;
         }
         else if (recipientID != null)
         {
@@ -3045,7 +3052,7 @@ public class GriefPrevention extends JavaPlugin
         }
 
         //apply changes
-        for (Claim currentClaim : targetClaims)
+        for (Claim currentClaim : event.getClaims())
         {
             if (permissionLevel == null)
             {
